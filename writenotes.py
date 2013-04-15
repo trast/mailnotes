@@ -82,11 +82,18 @@ def write_notes(sha, tm, tz, author, subject):
     article = m['gmane_id']
     parent = m
     thread = article
+    depth_limit = 100
     while 1:
-        if parent['in-reply-to'] not in mail:
+        parent_irt = parent['in-reply-to']
+        if parent_irt not in mail:
             break
-        parent = mail[parent['in-reply-to']]
+        depth_limit -= 1
+        if depth_limit < 0:
+            break
+        parent = mail[parent_irt]
         thread = parent['gmane_id']
+        if parent['in-reply-to'] == parent:
+            break
     if article is not None and thread is not None:
         n_gmane.append_line(sha, "http://thread.gmane.org/gmane.comp.version-control.git/%d/focus=%d" % (thread,article))
 
