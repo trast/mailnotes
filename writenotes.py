@@ -78,6 +78,7 @@ def write_notes(sha, tm, tz, author, subject):
         return
     m = mail[key]
     print sha, m['message_id']
+    n_msgid.append_line(sha, mail[key]['message_id'])
     article = m['gmane_id']
     parent = m
     thread = article
@@ -86,8 +87,8 @@ def write_notes(sha, tm, tz, author, subject):
             break
         parent = mail[parent['in-reply-to']]
         thread = parent['gmane_id']
-    n_msgid.append_line(sha, mail[key]['message_id'])
-    n_gmane.append_line(sha, "http://thread.gmane.org/gmane.comp.version-control.git/%d/focus=%d" % (thread,article))
+    if article is not None and thread is not None:
+        n_gmane.append_line(sha, "http://thread.gmane.org/gmane.comp.version-control.git/%d/focus=%d" % (thread,article))
 
 if __name__ == '__main__':
     try:
