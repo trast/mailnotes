@@ -8,7 +8,7 @@ import email.Iterators
 import email.Parser
 import email.utils
 import email.header
-
+from cStringIO import StringIO
 
 _msg_id_regex = re.compile(r'<([^<>]+)>')
 def _parse_msg_id(str):
@@ -56,7 +56,7 @@ def decode_quoted(s):
                 s = s.decode(e)
             ret.append(s)
         return ''.join(ret)
-    except UnicodeError:
+    except (UnicodeError, LookupError):
         return s
 
 _space_regex = re.compile(r'\s+')
@@ -65,8 +65,8 @@ def sanitize_single_line(s):
         return _space_regex.sub(' ', s)[:255]
 
 _gmane_id_regex = re.compile(r'<http://permalink\.gmane\.org/gmane\.comp\.version-control\.git/(\d+)>')
-def parse_mail(fname):
-    msg = parser.parse(fname)
+def parse_mail(text):
+    msg = parser.parse(StringIO(text))
     gmane_id = None
     if msg['Archived-At']:
         m = _gmane_id_regex.match(msg['Archived-At'])
@@ -122,6 +122,18 @@ def parse_mail(fname):
     data[msgid] = mail
     data[mail['date'], mail['from'], mail['subject']] = mail
 
+def parse_mbox(fp):
+    cur = None
+    for line in fp:
+        if line.startswith('From news@gmane.org'):
+            if cur:
+                parse_mail(''.join(cur))
+            cur = []
+        else:
+            cur.append(line)
+    if cur:
+        parse_mail(''.join(cur))
+
 if __name__ == '__main__':
 
     try:
@@ -134,12 +146,14 @@ if __name__ == '__main__':
     except IOError, e:
         seen = set()
 
-    for dirname in sys.argv[1:]:
-        for fname in os.listdir(dirname):
-            if fname in seen:
-                continue
-            parse_mail(open(os.path.join(dirname, fname)))
-            seen.add(fname)
+    cwd = os.getcwd()
+    for fname in sys.argv[1:]:
+        fname = os.path.normpath(os.path.join(cwd, fname))
+        if fname in seen:
+            continue
+        print fname
+        parse_mbox(open(os.path.join(fname)))
+        seen.add(fname)
 
     pickle.dump(data, open('mail.pickle', 'wb'), -1)
     pickle.dump(seen, open('mail-seen.pickle', 'wb'), -1)

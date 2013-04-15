@@ -78,7 +78,16 @@ def write_notes(sha, tm, tz, author, subject):
         return
     m = mail[key]
     print sha, m['message_id']
+    article = m['gmane_id']
+    parent = m
+    thread = article
+    while 1:
+        if parent['in-reply-to'] not in mail:
+            break
+        parent = mail[parent['in-reply-to']]
+        thread = parent['gmane_id']
     n_msgid.append_line(sha, mail[key]['message_id'])
+    n_gmane.append_line(sha, "http://thread.gmane.org/gmane.comp.version-control.git/%d/focus=%d" % (thread,article))
 
 if __name__ == '__main__':
     try:
@@ -88,6 +97,7 @@ if __name__ == '__main__':
     newheads = git_backtick('rev-parse', '--branches', '--remotes', '--tags').split()
     mail = pickle.load(open('mail.pickle', 'rb'))
     n_msgid = Notes('refs/notes/message-id', 'index.message-id')
+    n_gmane = Notes('refs/notes/gmane', 'index.gmane')
     for line in git_pipe('rev-list', '--no-merges', '--format=%H %ad %an <%ae>\t%s', '--date=raw',
                          *(newheads+['--not']+boundary)):
         if line.startswith('commit '):
@@ -97,4 +107,5 @@ if __name__ == '__main__':
         author, subject = rest.split('\t', 1)
         write_notes(sha, tm, tz, author, subject)
     n_msgid.flush()
+    n_gmane.flush()
     open('commits.boundary', 'w').write('\n'.join(newheads))
