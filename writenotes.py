@@ -43,29 +43,27 @@ class Notes(object):
         except OSError:
             pass
         count = len(self._cache)
-        input = []
+        gfi = subprocess.Popen(['git', 'fast-import', '--date-format=now'], stdin=subprocess.PIPE)
+        w = gfi.stdin.write
+        def write_data(data):
+            w('data %d\n' % len(data))
+            w(data)
+            w('\n')
+        w('commit %s\n' % self._ref)
+        w('committer Thomas Rast <trast@inf.ethz.ch> now\n')
+        write_data('Mass annotation by writenotes.py')
+        w('from %s^0\n' % self._ref)
+        w('deleteall\n')
         for cmt_sha1 in self._cache.iterkeys():
             count = count - 1
             sys.stdout.write('%6d\r' % count)
             sys.stdout.flush()
             notes = ''.join(self._cache[cmt_sha1]).strip('\n')
             notes = _eol_space_re.sub('', notes) + '\n'
-            blob_sha1 = git_communicate('hash-object', '-w', '--stdin', input=notes).strip()
-            input.append("100644 %s\t%s\n" % (blob_sha1, cmt_sha1))
+            w('N inline %s\n' % cmt_sha1)
+            write_data(notes)
+        gfi.stdin.close()
         sys.stdout.write('\n')
-        git_communicate('update-index', '--index-info', input=''.join(input), env=self._env)
-        previous = git_backtick('rev-parse', self._ref).strip()
-        if previous != self._ref:
-            args = ['-p', previous]
-            previous_arg = [previous]
-        else:
-            args = []
-            previous_arg = []
-        tree_sha1 = git_communicate('write-tree', env=self._env).strip()
-        head_sha1 = git_communicate('commit-tree', tree_sha1, *args,
-                                    **{'input':'Mass annotation by notes.py'}).strip()
-        git('update-ref', '-m', 'Mass annotation by writenotes.py',
-            self._ref, head_sha1, *previous_arg)
         self._reset()
 
 
