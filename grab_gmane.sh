@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # config
-GMANE_DROPBOX=~/dl/gmane-git
-REPO=~/tmp/git
+GMANE_DROPBOX=~/dev/gmane-git
+REPO=~/dev/gitbare.git
 
 # download new mails
 cd "$GMANE_DROPBOX"
